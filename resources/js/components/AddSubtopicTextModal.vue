@@ -1,5 +1,5 @@
 <template>
-    <ModalForm
+    <Modal
         :model-value="modelValue"
         @update:modelValue="$emit('update:modelValue', $event)"
         @submit="handleSubmit"
@@ -10,12 +10,12 @@
         <Dropdown v-model="form.text_id" label="Text" :options="textOptions" />
         <Dropdown v-model="form.subtopic_id" label="Subtopic" :options="subtopicOptions" />
         <Input v-model="form.note" label="Note (optional)" type="textarea" />
-    </ModalForm>
+    </Modal>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import ModalForm from './ModalForm.vue'
+import Modal from './form/Modal.vue'
 
 const props = defineProps({
     modelValue: Boolean,

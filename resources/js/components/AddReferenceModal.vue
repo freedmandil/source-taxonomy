@@ -1,5 +1,5 @@
 <template>
-    <ModalForm
+    <Modal
         :model-value="modelValue"
         @update:modelValue="$emit('update:modelValue', $event)"
         @submit="handleSubmit"
@@ -15,12 +15,12 @@
         />
         <Input v-model="form.text_value" label="Text Value" />
         <Input v-model="form.position" type="number" label="Integer Value (optional)" />
-    </ModalForm>
+    </Modal>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import ModalForm from './ModalForm.vue'
+import Modal from './form/Modal.vue'
 
 const props = defineProps({
     modelValue: Boolean

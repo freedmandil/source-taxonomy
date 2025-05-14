@@ -1,0 +1,15 @@
+.modal-backdrop.stacked {
+    z-index: 1055; /* higher than first backdrop (usually 1050) */
+    background-color: rgba(0, 0, 0, 0.6); /* darker */
+}
+
+.blurred-back .modal-content {
+    filter: blur(3px);
+    pointer-events: none;
+}
+
+.blurred-back .modal-content {
+    filter: blur(3px);
+    pointer-events: none;
+}
+

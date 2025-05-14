@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class TextReference extends Model
 {
+    protected $table = 'text_references';
+
     protected $fillable = ['text_id', 'taxonomy_id', 'text_value', 'numeric_value', 'note'];
 
     public function text()

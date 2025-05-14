@@ -56,4 +56,13 @@ class TaxonomyController extends Controller
 
         return response()->json(['message' => 'Taxonomy deleted']);
     }
+
+    public function checkSlug(Request $request, $slug = null)
+    {
+        $slug = $slug ?? $request->query('slug');
+
+        $exists = Taxonomy::where('slug', $slug)->exists();
+
+        return response()->json(['unique' => !$exists]);
+    }
 }

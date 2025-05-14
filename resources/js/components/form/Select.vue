@@ -1,8 +1,8 @@
 <template>
-    <div>
-        <label v-if="label" class="block mb-1 text-sm font-medium">{{ label }}</label>
+    <div :class="['p-2', wrapperClass]">
+        <label v-if="label" :class="['block mb-1 text-sm fw-bold p-2 pb-1', labelClass]">{{ label }}</label>
         <select
-            class="input w-full"
+            :class="['form-select input w-full p-2', selectClass]"
             :value="modelValue"
             @change="$emit('update:modelValue', $event.target.value)"
         >
@@ -14,6 +14,7 @@
 </template>
 
 <script setup>
+// Props for styling overrides
 defineProps({
     modelValue: [String, Number],
     label: String,
@@ -21,6 +22,20 @@ defineProps({
         type: Array,
         default: () => [],
     },
+    wrapperClass: {
+        type: [String, Array, Object],
+        default: ''
+    },
+    labelClass: {
+        type: [String, Array, Object],
+        default: ''
+    },
+    selectClass: {
+        type: [String, Array, Object],
+        default: ''
+    }
 })
+
 defineEmits(['update:modelValue'])
 </script>
+

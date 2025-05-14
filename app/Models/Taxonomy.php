@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Taxonomy extends Model
 {
+    protected $table = 'taxonomy';
+
     protected $fillable = ['slug', 'name_en', 'name_he', 'name_languages', 'note'];
 
     protected $casts = [

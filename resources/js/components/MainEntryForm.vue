@@ -1,64 +1,108 @@
 <template>
-    <div class="ui container">
-        <h2 class="ui header">Insert Halachic Entry</h2>
+    <div class="container mt-4">
+        <Form @submit="saveEntry">
+            <!-- Title -->
+            <template #title>
+                <h2 class="mb-4">Halachic Sefarim Index</h2>
+            </template>
 
-        <!-- Sefer Dropdown + Modal Button -->
-        <div class="field">
-            <label>Sefer</label>
-            <div class="ui action input">
-                <select v-model="form.sefer_id" class="ui dropdown">
-                    <option v-for="sefer in sefarim" :value="sefer.id" :key="sefer.id">
-                        {{ sefer.name_he }} / {{ sefer.name_en }}
-                    </option>
-                </select>
-                <button @click="showSeferModal = true" class="ui icon button">
-                    <i class="plus icon"></i>
-                </button>
-                <TextEntryForm v-model:form="form" :taxonomyOptions="taxonomyOptions" />
-            </div>
-        </div>
+            <!-- Body -->
+            <template #body>
+                <SeferPicker
+                    v-model:sefer-id="form.sefer_id"
+                    :sefarim="sefarim"
+                    @open-modal="showSeferModal = true"
+                />
+                <AddSeferModal v-model="showSeferModal" @close="handleSeferClose" />
 
-        <!-- Repeat for Topic, Sub-Topic, Keyword, Tag, Reference -->
+                <TaxonomySection
+                    v-model:entries="form.taxonomies"
+                    :taxonomy-options="sortedTaxonomyOptions"
+                    @add-new-type="showAddTaxonomyModal = true"
+                    @remove-entry="removeTaxonomy"
+                />
+                <AddTaxonomyModal
+                    v-model="showAddTaxonomyModal"
+                    :taxonomyOptions="sortedTaxonomyOptions"
+                    @success="handleNewTaxonomy"
+                />
 
-        <!-- Note Field -->
-        <div class="field">
-            <label>Note</label>
-            <textarea v-model="form.note" class="ui textarea"></textarea>
-        </div>
+                <ReferenceSelector
+                    v-model="form.references"
+                    :reference-list="referencesList"
+                    @open-modal="showReferenceModal = true"
+                />
+                <AddReferenceModal v-model="showReferenceModal" @success="handleReferenceSuccess" />
 
-        <!-- Submit Button -->
-        <button @click="submitForm" class="ui primary button">Save Entry</button>
+                <NoteInput v-model="form.notes" />
+            </template>
 
-        <!-- Modals -->
-        <AddSeferModal v-if="showSeferModal" @close="handleSeferClose" />
-        <!-- Add other modals similarly -->
+            <!-- Footer -->
+            <template #footer>
+                <div class="row">
+                    <div class="col text-end">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </div>
+            </template>
+        </Form>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import Form from './form/Form.vue'
+
+// Subcomponents from ./sub/
+import SeferPicker from './sub/SeferPicker.vue'
+import TaxonomySection from './sub/TaxonomySection.vue'
+import ReferenceSelector from './sub/ReferenceSelector.vue'
+import NoteInput from './sub/NoteInput.vue'
+
+// Modals
 import AddSeferModal from './AddSeferModal.vue'
-import TextEntryForm from './TextEntryForm.vue'
+import AddTaxonomyModal from './AddTaxonomyModal.vue'
+import AddReferenceModal from './AddReferenceModal.vue'
+
 const props = defineProps({
     taxonomyOptions: Array
 })
 
+const sortedTaxonomyOptions = computed(() => {
+    return [...props.taxonomyOptions].sort((a, b) =>
+        a.name_en.localeCompare(b.name_en)
+    )
+})
+
 const form = ref({
     sefer_id: null,
-    note: '',
-    references: []
-    // other fields like topic_ids, sub_topic_ids etc. to be added
+    taxonomies: [],
+    references: [],
+    notes: ''
 })
 
 const sefarim = ref([])
-const showSeferModal = ref(false)
+const referencesList = ref([])
 
-onMounted(fetchSefarim)
+const showSeferModal = ref(false)
+const showReferenceModal = ref(false)
+const showAddTaxonomyModal = ref(false)
+
+onMounted(() => {
+    fetchSefarim()
+    fetchReferences()
+})
 
 function fetchSefarim() {
     fetch('/api/sefarim')
         .then(res => res.json())
-        .then(data => sefarim.value = data)
+        .then(data => (sefarim.value = data))
+}
+
+function fetchReferences() {
+    fetch('/api/references')
+        .then(res => res.json())
+        .then(data => (referencesList.value = data))
 }
 
 function handleSeferClose(updated = false) {
@@ -66,11 +110,59 @@ function handleSeferClose(updated = false) {
     if (updated) fetchSefarim()
 }
 
-function submitForm() {
-    fetch('/api/texts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form.value),
-    }).then(/* handle success */)
+function handleNewTaxonomy(newItem) {
+    props.taxonomyOptions.push(newItem)
+    showAddTaxonomyModal.value = false
+}
+
+function handleReferenceSuccess(newRef) {
+    referencesList.value.push(newRef)
+    form.value.references.push(newRef.id)
+    showReferenceModal.value = false
+}
+
+function removeTaxonomy(index) {
+    form.value.taxonomies.splice(index, 1)
+}
+
+async function saveEntry() {
+    try {
+        // STEP 1: Create the `text` entry
+        const textResponse = await fetch('/api/texts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sefer_id: form.value.sefer_id,
+                note: form.value.notes
+            })
+        })
+
+        if (!textResponse.ok) throw new Error('Failed to create text entry')
+
+        const newText = await textResponse.json()
+        const textId = newText.id
+
+        // STEP 2: Create related text_references
+        const textReferencesPayload = form.value.taxonomies.map(t => ({
+            text_id: textId,
+            taxonomy_id: t.type,
+            text_value: t.text_value,
+            numeric_value: t.numeric_value,
+            note: t.note || null
+        }))
+
+        const refResponse = await fetch('/api/text-references/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(textReferencesPayload)
+        })
+
+        if (!refResponse.ok) throw new Error('Failed to save taxonomy references')
+
+        alert('Entry saved successfully!')
+    } catch (err) {
+        console.error('Save failed:', err)
+        alert('Save failed.')
+    }
 }
 </script>
