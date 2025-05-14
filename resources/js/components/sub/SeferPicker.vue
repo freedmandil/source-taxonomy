@@ -14,19 +14,19 @@
                         {{ s.english_name }} <span v-if="s.hebrew_name">({{ s.hebrew_name }})</span>
                     </option>
                 </select>
-                <button
-                    type="button"
-                    class="btn btn-outline-secondary ms-2"
+                <Button
+                    action="open-modal"
+                    text="+ Add Sefer"
                     @click="$emit('open-modal')"
-                >
-                    + Add Sefer
-                </button>
+                />
             </div>
         </div>
     </div>
 </template>
 
 <script setup>
+import Button from '../form/Button.vue'
+
 defineProps(['seferId', 'sefarim'])
 defineEmits(['update:seferId', 'open-modal'])
 </script>

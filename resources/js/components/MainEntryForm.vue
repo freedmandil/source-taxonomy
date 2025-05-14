@@ -8,6 +8,7 @@
 
             <!-- Body -->
             <template #body>
+                <!-- Sefer Picker -->
                 <SeferPicker
                     v-model:sefer-id="form.sefer_id"
                     :sefarim="sefarim"
@@ -15,26 +16,63 @@
                 />
                 <AddSeferModal v-model="showSeferModal" @close="handleSeferClose" />
 
+                <!-- Taxonomies -->
                 <TaxonomySection
                     v-model:entries="form.taxonomies"
                     :taxonomy-options="sortedTaxonomyOptions"
                     @add-new-type="showAddTaxonomyModal = true"
                     @remove-entry="removeTaxonomy"
                 />
+
+                <!-- Add Taxonomy Modal (still custom, for now) -->
                 <AddTaxonomyModal
                     v-model="showAddTaxonomyModal"
                     :taxonomyOptions="sortedTaxonomyOptions"
                     @success="handleNewTaxonomy"
                 />
 
-                <ReferenceSelector
-                    v-model="form.references"
-                    :reference-list="referencesList"
-                    @open-modal="showReferenceModal = true"
-                />
-                <AddReferenceModal v-model="showReferenceModal" @success="handleReferenceSuccess" />
-
+                <!-- Notes -->
                 <NoteInput v-model="form.notes" />
+
+                <!-- Add Tag Button -->
+                <div class="mt-3">
+                    <button type="button" class="btn btn-outline-secondary" @click="showAddTagModal = true">
+                        + Add Tag
+                    </button>
+                </div>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-outline-secondary" @click="showAddKeywordModal = true">
+                        + Add Keyword
+                    </button>
+                </div>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-outline-secondary" @click="showAddTopicModal = true">
+                        + Add Topic
+                    </button>
+                </div>
+
+                <!-- Reusable Tag Modal -->
+                <AddEntityModal
+                    v-model="showAddTagModal"
+                    title="Add Tag"
+                    api-path="/api/tag-action"
+                    slug-check-url="/api/tag-action/checkSlug"
+                    @success="handleNewTag"
+                />
+                <AddEntityModal
+                    v-model="showAddKeywordModal"
+                    title="Add Keyword"
+                    api-path="/api/keyword-action"
+                    slug-check-url="/api/keyword-action/checkSlug"
+                    @success="handleNewTag"
+                />
+                <AddEntityModal
+                    v-model="showAddTopicModal"
+                    title="Add Topic"
+                    api-path="/api/topic-action"
+                    slug-check-url="/api/topic-action/checkSlug"
+                    @success="handleNewTag"
+                />
             </template>
 
             <!-- Footer -->
@@ -53,16 +91,15 @@
 import { ref, onMounted, computed } from 'vue'
 import Form from './form/Form.vue'
 
-// Subcomponents from ./sub/
+// Subcomponents
 import SeferPicker from './sub/SeferPicker.vue'
 import TaxonomySection from './sub/TaxonomySection.vue'
-import ReferenceSelector from './sub/ReferenceSelector.vue'
 import NoteInput from './sub/NoteInput.vue'
 
 // Modals
 import AddSeferModal from './AddSeferModal.vue'
 import AddTaxonomyModal from './AddTaxonomyModal.vue'
-import AddReferenceModal from './AddReferenceModal.vue'
+import AddEntityModal from './AddEntityModal.vue' // 🆕 REUSABLE modal
 
 const props = defineProps({
     taxonomyOptions: Array
@@ -85,8 +122,10 @@ const sefarim = ref([])
 const referencesList = ref([])
 
 const showSeferModal = ref(false)
-const showReferenceModal = ref(false)
 const showAddTaxonomyModal = ref(false)
+const showAddTagModal = ref(false)
+const showAddKeywordModal = ref(false)
+const showAddTopicModal = ref(false)
 
 onMounted(() => {
     fetchSefarim()
@@ -115,10 +154,18 @@ function handleNewTaxonomy(newItem) {
     showAddTaxonomyModal.value = false
 }
 
-function handleReferenceSuccess(newRef) {
-    referencesList.value.push(newRef)
-    form.value.references.push(newRef.id)
-    showReferenceModal.value = false
+function handleNewTag(newTag) {
+    // Example logic — adjust depending on where you're using tags
+    showAddTagModal.value = false
+}
+function handleNewKeyword(newKeyword) {
+    // Example logic — adjust depending on where you're using keywords
+    showAddKeywordModal.value = false
+}
+
+function handleNewTopic(newTopic) {
+    // Example logic — adjust depending on where you're using topics
+    showAddTopicModal.value = false
 }
 
 function removeTaxonomy(index) {
@@ -151,7 +198,7 @@ async function saveEntry() {
             note: t.note || null
         }))
 
-        const refResponse = await fetch('/api/text-references/bulk', {
+        const refResponse = await fetch('/api/references-action/bulk', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(textReferencesPayload)

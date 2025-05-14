@@ -5,8 +5,8 @@
         tabindex="-1"
         ref="modalRef"
         role="dialog"
-        aria-hidden="true"
         @click.self="hideModal"
+        :inert="!modelValue ? true : null"
     >
         <div class="modal-dialog">
             <div class="modal-content">
@@ -24,13 +24,12 @@
                 </div>
 
                 <!-- Modal Footer (outside modal-body) -->
-                <div v-if="insideForm" class="modal-footer w-100 d-flex justify-content-end gap-2 px-3 py-2 bg-light border-top rounded-bottom">
-                    <slot name="footer" />
-                </div>
-
-                <div v-else class="modal-footer w-100 d-flex justify-content-end gap-2 px-3 py-2 bg-light border-top rounded-bottom">
+                <div class="modal-footer w-100 d-flex justify-content-end gap-2 px-3 py-2 bg-light border-top rounded-bottom">
                     <slot name="footer">
-                        <button class="btn btn-secondary" @click="hideModal">Close</button>
+                        <Button
+                            action="cancel"
+                            text="Cancel"
+                        />
                     </slot>
                 </div>
             </div>
@@ -42,6 +41,7 @@
 import { ref, watch, onMounted, onBeforeUnmount, inject} from 'vue'
 import * as bootstrap from 'bootstrap'
 import { useModalStack } from '@/utils/modalStack'
+import Button from "./Button.vue";
 
 
 const props = defineProps({
@@ -89,6 +89,7 @@ onMounted(() => {
 
 function hideModal() {
     modalInstance?.hide()
+    emit('update:modelValue', false)
 }
 
 onBeforeUnmount(() => {
@@ -134,7 +135,6 @@ function cleanupBackdrop() {
     const modals = Array.from(document.querySelectorAll('.modal.show'))
     modals.forEach(modal => modal.classList.remove('blurred-back'))
 
-    console.log('Modal closed. Cleaning up.')
     if (modals.length > 1) {
         const newTopBelow = modals[modals.length - 2]
         newTopBelow.classList.add('blurred-back')

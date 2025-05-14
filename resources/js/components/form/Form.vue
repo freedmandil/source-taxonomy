@@ -1,5 +1,8 @@
 <template>
-    <form @submit.prevent="handleSubmit">
+    <form
+        :id="formId"
+        @submit.prevent="handleSubmit"
+    >
         <slot name="title" />
         <slot name="body" />
         <slot name="footer" />

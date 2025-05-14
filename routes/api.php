@@ -26,3 +26,22 @@ use App\Http\Controllers\Api\TaxonomyController;
         }
         abort(404, "Method [$method] not found.");
     });
+
+    Route::any('references-action/{method}', function ($method, Request $request) {
+        $controller = app(\App\Http\Controllers\Api\ReferenceController::class);
+        if (method_exists($controller, $method)) {
+            return app()->call([$controller, $method]);
+        }
+        abort(404, "Method [$method] not found.");
+    });
+
+Route::any('tag-action/{method}', function ($method, Request $request) {
+    $controller = app(\App\Http\Controllers\Api\TagController::class);
+    if (method_exists($controller, $method)) {
+        return app()->call([$controller, $method]);
+    }
+    abort(404, "Method [$method] not found.");
+});
+
+
+

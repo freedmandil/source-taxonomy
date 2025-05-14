@@ -1,9 +1,8 @@
 <template>
-    <Modal
-        :model-value="modelValue"
-        @update:modelValue="$emit('update:modelValue', $event)"
+    <Modal :model-value="modelValue"
+           @update:modelValue="$emit('update:modelValue', $event)"
     >
-        <template #title>Add Tag</template>
+        <template #title>{{ title }}</template>
 
         <template #body>
             <Form
@@ -12,18 +11,21 @@
                 @submit="onSubmit"
                 @success="handleSuccess"
                 modalStyle
+                id="add-entity-form"
+                @update:modelValue="showModal = $event"
+
             >
                 <template #body>
                     <Input
                         v-model="form.name_en"
                         label="Name (English):"
-                        placeholder="e.g. Prohibited, Permissible..."
+                        placeholder=" "
                         :error="errors.name_en"
                     />
                     <Input
                         v-model="form.slug"
                         label="Slug:"
-                        placeholder="e.g. prohibited, permissible..."
+                        placeholder=" "
                         @input="form.slugTouched = true"
                         readonly
                         :error="errors.slug"
@@ -31,7 +33,7 @@
                     <Input
                         v-model="form.name_he"
                         label="שם (עברית):"
-                        placeholder="e.g. אסור, מותר..."
+                        placeholder=" "
                         dir="rtl"
                         :rtl="true"
                         wrapperClass="text-right"
@@ -43,35 +45,28 @@
                     />
                 </template>
 
-                <template #footer>
-                    <button
-                        class="btn btn-success"
-                        :disabled="isSubmitting || isCheckingSlug"
-                        type="submit"
-                    >
-                        <span
-                            v-if="isSubmitting || isCheckingSlug"
-                            class="spinner-border spinner-border-sm me-2"
-                            role="status"
-                            aria-hidden="true"
-                        ></span>
-                        Save
-                    </button>
-                    <button
-                        class="btn btn-secondary"
-                        type="button"
-                        @click="$emit('update:modelValue', false)"
-                    >
-                        Close
-                    </button>
-                </template>
+
             </Form>
+        </template>
+        <template #footer>
+            <Button
+                action="save"
+                :loading="isSubmitting || isCheckingSlug"
+                form="add-entity-form"
+                text="Save"
+            />
+            <Button
+                action="cancel"
+                text="Cancel"
+                @cancel="emit('update:modelValue', false)"
+            />
         </template>
     </Modal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from 'vue'
+import Button from './form/Button.vue'
 import Modal from './form/Modal.vue'
 import Form from './form/Form.vue'
 import Input from './form/Input.vue'
@@ -79,15 +74,19 @@ import Textarea from './form/Textarea.vue'
 import { slugify } from '@/utils/slugUtils'
 import axios from 'axios'
 
-const isSubmitting = ref(false)
-const isCheckingSlug = ref(false)
-const errors = ref({})
+const props = defineProps<{
+    modelValue: boolean
+    closeOnSuccess?: boolean
+    title: string
+    apiPath: string
+    slugCheckUrl: string
+}>()
 
-const props = defineProps({
-    modelValue: Boolean,
-    closeOnSuccess: { type: Boolean, default: true }
-})
-const emit = defineEmits(['update:modelValue', 'submit', 'success'])
+const emit = defineEmits<{
+    (e: 'update:modelValue', value: boolean): void
+    (e: 'success', payload: any): void
+    (e: 'cancel'): void
+}>()
 
 const form = ref({
     name_en: '',
@@ -97,47 +96,59 @@ const form = ref({
     slugTouched: false
 })
 
-const onSubmit = async () => {
+const errors = ref<Record<string, string | null>>({})
+const isSubmitting = ref(false)
+const isCheckingSlug = ref(false)
+
+watch(() => form.value.name_en, (newVal) => {
+    if (!form.value.slugTouched) {
+        form.value.slug = slugify(newVal || '')
+    }
+    errors.value.slug = null
+})
+
+watch(() => form.value.slug, () => {
+    errors.value.slug = null
+})
+
+async function onSubmit() {
     isSubmitting.value = true
     try {
         const payload = await handleSubmit()
-        const response = await axios.post('/api/tag-action', payload)
-
+        if (!payload) return
+        const response = await axios.post(props.apiPath, payload)
         emit('success', response.data)
-
-        if (props.closeOnSuccess) {
+        if (props.closeOnSuccess !== false) {
             emit('update:modelValue', false)
         }
     } catch (err) {
-        // Optional error handling
     } finally {
         isSubmitting.value = false
     }
 }
 
-const handleSuccess = () => {
-    // Optional, handled by Form
+function handleSuccess() {
+    // Optional hook
 }
 
-const handleSubmit = async () => {
+async function handleSubmit() {
     errors.value = {}
-
     if (!form.value.name_en || !form.value.slug) {
         if (!form.value.name_en) errors.value.name_en = 'Name (English) is required.'
         if (!form.value.slug) errors.value.slug = 'Slug is required.'
-        throw 'Please fill in all required fields.'
+        return null
     }
 
     const isUnique = await checkSlugUnique()
     if (!isUnique) {
         errors.value.slug = `Slug "${form.value.slug}" already exists. Please modify it.`
-        throw 'Slug must be unique.'
+        return null
     }
 
     return { ...form.value }
 }
 
-const checkSlugUnique = async () => {
+async function checkSlugUnique(): Promise<boolean> {
     const baseSlug = form.value.slug
     if (!baseSlug) return true
 
@@ -149,14 +160,13 @@ const checkSlugUnique = async () => {
         let slugToCheck = baseSlug
 
         while (attempt < 10) {
-            const res = await fetch(`/api/tag-action/checkSlug?slug=${encodeURIComponent(slugToCheck)}`)
+            const res = await fetch(`${props.slugCheckUrl}?slug=${encodeURIComponent(slugToCheck)}`)
             const data = await res.json()
-
             if (data.unique) return true
 
             attempt++
             slugToCheck = `${baseSlug}-${attempt}`
-            const nextRes = await fetch(`/api/tag-action/checkSlug?slug=${encodeURIComponent(slugToCheck)}`)
+            const nextRes = await fetch(`${props.slugCheckUrl}?slug=${encodeURIComponent(slugToCheck)}`)
             const nextData = await nextRes.json()
 
             if (nextData.unique) {
@@ -181,15 +191,4 @@ const checkSlugUnique = async () => {
         isCheckingSlug.value = false
     }
 }
-
-watch(() => form.value.name_en, (newVal) => {
-    if (!form.value.slugTouched) {
-        form.value.slug = slugify(newVal || '')
-    }
-    errors.value.slug = null
-})
-
-watch(() => form.value.slug, () => {
-    errors.value.slug = null
-})
 </script>
